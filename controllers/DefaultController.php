@@ -336,7 +336,6 @@ class DefaultController extends BaseEventTypeController {
 	}
 	
 	protected function printPDF($id, $elements, $template='print') {
-		
 		// Remove any existing css
 		Yii::app()->getClientScript()->reset();
 		
