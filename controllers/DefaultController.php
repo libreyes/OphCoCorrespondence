@@ -336,7 +336,7 @@ class DefaultController extends BaseEventTypeController {
 		$this->printPDF($id, $elements);
 	}
 	
-	protected function printPDF($id, $elements) {
+	protected function printPDF($id, $elements, $template='print') {
 		
 		if (!$letter = ElementLetter::model()->find('event_id=?',array($id))) {
 			throw new Exception('Letter not found were event_id = '.$id);
