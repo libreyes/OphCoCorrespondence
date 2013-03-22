@@ -3,7 +3,7 @@
  * OpenEyes
  *
  * (C) Moorfields Eye Hospital NHS Foundation Trust, 2008-2011
- * (C) OpenEyes Foundation, 2011-2012
+ * (C) OpenEyes Foundation, 2011-2013
  * This file is part of OpenEyes.
  * OpenEyes is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * OpenEyes is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
@@ -13,7 +13,7 @@
  * @link http://www.openeyes.org.uk
  * @author OpenEyes <info@openeyes.org.uk>
  * @copyright Copyright (c) 2008-2011, Moorfields Eye Hospital NHS Foundation Trust
- * @copyright Copyright (c) 2011-2012, OpenEyes Foundation
+ * @copyright Copyright (c) 2011-2013, OpenEyes Foundation
  * @license http://www.gnu.org/licenses/gpl-3.0.html The GNU General Public License V3.0
  */
 
@@ -216,7 +216,13 @@ class ElementLetter extends BaseEventTypeElement
 
 			if ($contact = $user->contact) {
 				$firm = Firm::model()->findByPk(Yii::app()->session['selected_firm_id']);
-				$consultant = $firm->getConsultantUser();
+				$consultant = null;
+				// only want to get consultant for medical firms
+				if ($specialty = $firm->getSpecialty()) {
+					if ($specialty->medical) {
+						$consultant = $firm->getConsultantUser();
+					}
+				}
 
 				$this->footer = "Yours sincerely\n\n\n\n\n".trim($contact->title.' '.$contact->first_name.' '.$contact->last_name.' '.$contact->qualifications)."\n".$user->role;
 
@@ -246,15 +252,16 @@ class ElementLetter extends BaseEventTypeElement
 
 			if (Yii::app()->findModule('OphCiExamination')) {
 				if ($episode = $patient->getEpisodeForCurrentSubspecialty()) {
-					$event_type = EventType::model()->find('class_name=?',array('OphCiExamination'));
-					$criteria = new CDbCriteria;
-					$criteria->addCondition('event_type_id = '.$event_type->id);
-					$criteria->addCondition('episode_id = '.$episode->id);
-					$criteria->order = "created_date desc";
-					$criteria->limit = 1;
+					if ($event_type = EventType::model()->find('class_name=?',array('OphCiExamination'))) {
+						$criteria = new CDbCriteria;
+						$criteria->addCondition('event_type_id = '.$event_type->id);
+						$criteria->addCondition('episode_id = '.$episode->id);
+						$criteria->order = "created_date desc";
+						$criteria->limit = 1;
 
-					if ($event = Event::model()->find($criteria)) {
-						$this->clinic_date = $event->datetime;
+						if ($event = Event::model()->find($criteria)) {
+							$this->clinic_date = $event->datetime;
+						}
 					}
 				}
 			}
@@ -295,15 +302,15 @@ class ElementLetter extends BaseEventTypeElement
 		$this->body = $this->macro->body;
 
 		if ($this->macro->cc_patient && $patient->address) {
-			$this->cc = 'Patient: '.$patient->title.' '.$patient->first_name.' '.$patient->last_name.', '.implode(', ',$patient->address->getLetterarray(false));
+			$this->cc = 'Patient: '.$patient->title.' '.$patient->first_name.' '.$patient->last_name.', '.implode(', ',$patient->address->getLetterarray());
 			$this->cc_targets[] = 'patient';
 		}
 
 		if ($this->macro->cc_doctor && @$patient->practice->address) {
 			if(@$patient->gp->contact) {
-				$this->cc = 'GP: '.$patient->gp->contact->title.' '.$patient->gp->contact->first_name.' '.$patient->gp->contact->last_name.', '.implode(', ',$patient->gp->contact->address->getLetterarray(false));
+				$this->cc = 'GP: '.$patient->gp->contact->title.' '.$patient->gp->contact->first_name.' '.$patient->gp->contact->last_name.', '.implode(', ',$patient->gp->contact->address->getLetterarray());
 			} else {
-				$this->cc = 'GP: '.Gp::UNKNOWN_NAME.', '.implode(', ',$patient->practice->address->getLetterarray(false));
+				$this->cc = 'GP: '.Gp::UNKNOWN_NAME.', '.implode(', ',$patient->practice->address->getLetterarray());
 			}
 			$this->cc_targets[] = 'gp';
 		}
@@ -316,7 +323,7 @@ class ElementLetter extends BaseEventTypeElement
 		$firm = Firm::model()->findByPk(Yii::app()->session['selected_firm_id']);
 
 		$criteria = new CDbCriteria;
-		$criteria->compare('firm_id', $firm->id, true);
+		$criteria->compare('firm_id', $firm->id);
 		$criteria->order = 'display_order asc';
 
 		foreach (FirmLetterMacro::model()->findAll($criteria) as $flm) {
@@ -326,7 +333,7 @@ class ElementLetter extends BaseEventTypeElement
 		}
 
 		$criteria = new CDbCriteria;
-		$criteria->compare('subspecialty_id', $firm->serviceSubspecialtyAssignment->subspecialty_id, true);
+		$criteria->compare('subspecialty_id', $firm->serviceSubspecialtyAssignment->subspecialty_id);
 		$criteria->order = 'display_order asc';
 
 		foreach (SubspecialtyLetterMacro::model()->findAll($criteria) as $slm) {
@@ -336,7 +343,7 @@ class ElementLetter extends BaseEventTypeElement
 		}
 
 		$criteria = new CDbCriteria;
-		$criteria->compare('site_id', Yii::app()->session['selected_site_id'], true);
+		$criteria->compare('site_id', Yii::app()->session['selected_site_id']);
 		$criteria->order = 'display_order asc';
 
 		foreach (LetterMacro::model()->findAll($criteria) as $slm) {

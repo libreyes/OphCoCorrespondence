@@ -1,4 +1,21 @@
 <?php
+/**
+ * OpenEyes
+*
+* (C) Moorfields Eye Hospital NHS Foundation Trust, 2008-2011
+* (C) OpenEyes Foundation, 2011-2013
+* This file is part of OpenEyes.
+* OpenEyes is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+* OpenEyes is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+* You should have received a copy of the GNU General Public License along with OpenEyes in a file titled COPYING. If not, see <http://www.gnu.org/licenses/>.
+*
+* @package OpenEyes
+* @link http://www.openeyes.org.uk
+* @author OpenEyes <info@openeyes.org.uk>
+* @copyright Copyright (c) 2008-2011, Moorfields Eye Hospital NHS Foundation Trust
+* @copyright Copyright (c) 2011-2013, OpenEyes Foundation
+* @license http://www.gnu.org/licenses/gpl-3.0.html The GNU General Public License V3.0
+*/
 
 class DefaultController extends BaseEventTypeController {
 
@@ -11,6 +28,8 @@ class DefaultController extends BaseEventTypeController {
 	}
 
 	public function actionView($id) {
+		$this->jsVars['correspondence_markprinted_url'] = Yii::app()->createUrl('OphCoCorrespondence/Default/markPrinted/'.$id);
+		$this->jsVars['correspondence_print_url'] = Yii::app()->createUrl('OphCoCorrespondence/Default/print/'.$id);
 		parent::actionView($id);
 	}
 
@@ -42,7 +61,7 @@ class DefaultController extends BaseEventTypeController {
 				throw new Exception('Unknown contact id: '.$m[1]);
 			}
 			if ($address = $patient->getContactAddress($contact->id, @$m[2], @$m[3])) {
-				$address = $address->getLetterAddress();
+				$address = $address->getLetterAddress(true);
 			}
 		} else {
 			throw new Exception('Unknown or missing address_id value: '.@$_GET['address_id']);
@@ -178,7 +197,7 @@ class DefaultController extends BaseEventTypeController {
 			if ($patient->date_of_death) {
 				$data['alert'] = "Warning: the patient cannot be cc'd because they are deceased.";
 			} else if ($patient->address) {
-				$data['textappend_ElementLetter_cc'] = 'Patient: '.$patient->addressName.', '.implode(', ',$patient->address->getLetterarray(false));
+				$data['textappend_ElementLetter_cc'] = 'Patient: '.$patient->addressName.', '.implode(', ',$patient->address->getLetterarray());
 				$data['elementappend_cc_targets'] = '<input type="hidden" name="CC_Targets[]" value="patient" />';
 			} else {
 				$data['alert'] = "Letters to the GP should be cc'd to the patient, but this patient does not have a valid address.";
@@ -187,9 +206,9 @@ class DefaultController extends BaseEventTypeController {
 
 		if ($macro->cc_doctor && @$patient->practice->address) {
 			if(@$patient->gp->contact) {
-				$data['textappend_ElementLetter_cc'] = 'GP: '.$patient->gp->contact->fullName.', '.implode(', ',$patient->practice->address->getLetterarray(false));
+				$data['textappend_ElementLetter_cc'] = 'GP: '.$patient->gp->contact->fullName.', '.implode(', ',$patient->practice->address->getLetterarray());
 			} else {
-				$data['textappend_ElementLetter_cc'] = 'GP: '.Gp::UNKNOWN_NAME.', '.implode(', ',$patient->practice->address->getLetterarray(false));
+				$data['textappend_ElementLetter_cc'] = 'GP: '.Gp::UNKNOWN_NAME.', '.implode(', ',$patient->practice->address->getLetterarray());
 			}
 			$data['elementappend_cc_targets'] = '<input type="hidden" name="CC_Targets[]" value="gp" />';
 		}
@@ -292,7 +311,7 @@ class DefaultController extends BaseEventTypeController {
 			} else if($contact) {
 				echo $contact->fullName.', ';
 			}
-			echo implode(', ',$address->getLetterarray(true));
+			echo implode(', ',$address->getLetterarray(true,true,true));
 		} else {
 			echo "NO ADDRESS";
 		}
@@ -331,11 +350,7 @@ class DefaultController extends BaseEventTypeController {
 		}
 	}
 
-	protected function printHTML($id, $elements) {
-		$this->printPDF($id, $elements);
-	}
-	
-	protected function printPDF($id, $elements, $template='print') {
+	protected function printPDF($id, $elements, $template='print', $params=array()) {
 		// Remove any existing css
 		Yii::app()->getClientScript()->reset();
 		
@@ -420,14 +435,21 @@ class DefaultController extends BaseEventTypeController {
 		$criteria->order = 'first_name, last_name';
 
 		$firm = Firm::model()->findByPk(Yii::app()->session['selected_firm_id']);
-		$consultant = $firm->getConsultantUser();
+		$consultant = null;
+		// only want a consultant for medical firms
+		if ($specialty = $firm->getSpecialty()) {
+			if ($specialty->medical) {
+				$consultant = $firm->getConsultantUser();
+			}
+		}
 
 		foreach (User::model()->findAll($criteria) as $user) {
 			if ($contact = $user->contact) {
 
 				$consultant_name = false;
-
-				if ($user->id != $consultant->id) {
+				
+				// if we have a consultant for the firm, and its not the matched user, attach the consultant name to the entry
+				if ($consultant && $user->id != $consultant->id) {
 					$consultant_name = trim($consultant->contact->title.' '.$consultant->contact->first_name.' '.$consultant->contact->last_name);
 				}
 
@@ -445,21 +467,16 @@ class DefaultController extends BaseEventTypeController {
 	}
 
 	public function process_examination_findings($patient_id, $element_type_id) {
-		if (!$patient = Patient::model()->findByPk($patient_id)) {
-			throw new Exception('Unable to find patient: '.$patient_id);
-		}
-
-		$event_type = EventType::model()->find('class_name=?',array('OphCiExamination'));
-
-		$element_type = ElementType::model()->findByPk($element_type_id);
-
-		if ($episode = $patient->getEpisodeForCurrentSubspecialty()) {
-			if ($event = $episode->getMostRecentEventByType($event_type->id)) {
-
-				if ($element = ModuleAPI::getmodel('OphCiExamination',$element_type->class_name)->find('event_id=?',array($event->id))) {
-					return $element->letter_string;
-				}
+		if ($api = Yii::app()->moduleAPI->get('OphCiExamination')) {
+			if (!$patient = Patient::model()->findByPk($patient_id)) {
+				throw new Exception('Unable to find patient: '.$patient_id);
 			}
+
+			if ($element_type = ElementType::model()->findByPk($element_type_id)) {
+				throw new Exception("Unknown element type: $element_type_id");
+			}
+
+			return $api->getLetterStringForModel($patient, $element_type_id);
 		}
 	}
 }

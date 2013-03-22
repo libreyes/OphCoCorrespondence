@@ -1,70 +1,65 @@
+/**
+ * OpenEyes
+ *
+ * (C) Moorfields Eye Hospital NHS Foundation Trust, 2008-2011
+ * (C) OpenEyes Foundation, 2011-2013
+ * This file is part of OpenEyes.
+ * OpenEyes is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * OpenEyes is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with OpenEyes in a file titled COPYING. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * @package OpenEyes
+ * @link http://www.openeyes.org.uk
+ * @author OpenEyes <info@openeyes.org.uk>
+ * @copyright Copyright (c) 2008-2011, Moorfields Eye Hospital NHS Foundation Trust
+ * @copyright Copyright (c) 2011-2013, OpenEyes Foundation
+ * @license http://www.gnu.org/licenses/gpl-3.0.html The GNU General Public License V3.0
+ */
 
+var correspondence_markprinted_url, correspondence_print_url;
 $(document).ready(function() {
-	$('#et_save_draft').unbind('click').click(function() {
-		if (!$(this).hasClass('inactive')) {
-			disableButtons();
-			$('#ElementLetter_draft').val(1);
-			return true;
-		}
-		return false;
+	handleButton($('#et_save_draft'),function() {
+		$('#ElementLetter_draft').val(1);
 	});
 
-	$('#et_save_print').unbind('click').click(function() {
-		if (!$(this).hasClass('inactive')) {
-			disableButtons();
-			$('#ElementLetter_draft').val(0);
-			return true;
-		}
-		return false;
+	handleButton($('#et_save_print'),function() {
+		$('#ElementLetter_draft').val(0);
 	});
 
-	$('#et_cancel').unbind('click').click(function() {
-		if (!$(this).hasClass('inactive')) {
-			$('#dialog-confirm-cancel').dialog({
-				resizable: false,
-				//height: 140,
-				modal: true,
-				buttons: {
-					"Yes, cancel": function() {
-						$(this).dialog('close');
+	handleButton($('#et_cancel'),function() {
+		$('#dialog-confirm-cancel').dialog({
+			resizable: false,
+			//height: 140,
+			modal: true,
+			buttons: {
+				"Yes, cancel": function() {
+					$(this).dialog('close');
 
-						disableButtons();
+					disableButtons();
 
-						if (m = window.location.href.match(/\/update\/[0-9]+/)) {
-							window.location.href = window.location.href.replace('/update/','/view/');
-						} else {
-							window.location.href = baseUrl+'/patient/episodes/'+et_patient_id;
-						}
-					},
-					"No, go back": function() {
-						$(this).dialog('close');
-						return false;
+					if (m = window.location.href.match(/\/update\/[0-9]+/)) {
+						window.location.href = window.location.href.replace('/update/','/view/');
+					} else {
+						window.location.href = baseUrl+'/patient/episodes/'+OE_patient_id;
 					}
+				},
+				"No, go back": function() {
+					$(this).dialog('close');
+					return false;
 				}
-			});
-		}
-		return false;
-	});
-
-	$('#et_deleteevent').unbind('click').click(function() {
-		if (!$(this).hasClass('inactive')) {
-			disableButtons();
-			return true;
-		}
-		return false;
-	});
-
-	$('#et_canceldelete').unbind('click').click(function() {
-		if (!$(this).hasClass('inactive')) {
-			disableButtons();
-
-			if (m = window.location.href.match(/\/delete\/[0-9]+/)) {
-				window.location.href = window.location.href.replace('/delete/','/view/');
-			} else {
-				window.location.href = baseUrl+'/patient/episodes/'+et_patient_id;
 			}
-		} 
-		return false;
+		});
+	});
+
+	handleButton($('#et_deleteevent'));
+
+	handleButton($('#et_canceldelete'),function(e) {
+		if (m = window.location.href.match(/\/delete\/[0-9]+/)) {
+			window.location.href = window.location.href.replace('/delete/','/view/');
+		} else {
+			window.location.href = baseUrl+'/patient/episodes/'+OE_patient_id;
+		}
+		e.preventDefault();
 	});
 
 	$('#address_target').change(function() {
@@ -92,7 +87,7 @@ $(document).ready(function() {
 			$.ajax({
 				'type': 'GET',
 				'dataType': 'json',
-				'url': baseUrl+'/OphCoCorrespondence/Default/getAddress?patient_id='+patient_id+'&address_id='+val+'&nickname='+nickname,
+				'url': baseUrl+'/OphCoCorrespondence/Default/getAddress?patient_id='+OE_patient_id+'&address_id='+val+'&nickname='+nickname,
 				'success': function(data) {
 					if (data['error'] == 'DECEASED') {
 						alert("This patient is deceased and cannot be written to.");
@@ -117,7 +112,7 @@ $(document).ready(function() {
 					if ($('#ElementLetter_cc').val().length >0) {
 						$.ajax({
 							'type': 'GET',
-							'url': baseUrl+'/OphCoCorrespondence/Default/getCc?patient_id='+patient_id+'&contact_id='+val,
+							'url': baseUrl+'/OphCoCorrespondence/Default/getCc?patient_id='+OE_patient_id+'&contact_id='+val,
 							'success': function(text) {
 								if (text.match(/DECEASED/)) {
 									alert("This patient is deceased and cannot be cc'd.");
@@ -161,7 +156,7 @@ $(document).ready(function() {
 					if (val != 'gp') {
 						$.ajax({
 							'type': 'GET',
-							'url': baseUrl+'/OphCoCorrespondence/Default/getCc?patient_id='+patient_id+'&contact_id=gp',
+							'url': baseUrl+'/OphCoCorrespondence/Default/getCc?patient_id='+OE_patient_id+'&contact_id=gp',
 							'success': function(text) {
 								if (!text.match(/NO ADDRESS/)) {
 									if ($('#ElementLetter_cc').val().length >0) {
@@ -189,7 +184,7 @@ $(document).ready(function() {
 						// if the letter is to the GP we need to cc the patient
 						$.ajax({
 							'type': 'GET',
-							'url': baseUrl+'/OphCoCorrespondence/Default/getCc?patient_id='+patient_id+'&contact_id=patient',
+							'url': baseUrl+'/OphCoCorrespondence/Default/getCc?patient_id='+OE_patient_id+'&contact_id=patient',
 							'success': function(text) {
 								if (text.match(/DECEASED/)) {
 									alert("The patient is deceased so cannot be cc'd.");
@@ -233,7 +228,7 @@ $(document).ready(function() {
 			$.ajax({
 				'type': 'GET',
 				'dataType': 'json',
-				'url': baseUrl+'/OphCoCorrespondence/Default/getMacroData?patient_id='+patient_id+'&macro_type='+m[1]+'&macro_id='+m[2]+'&nickname='+nickname,
+				'url': baseUrl+'/OphCoCorrespondence/Default/getMacroData?patient_id='+OE_patient_id+'&macro_type='+m[1]+'&macro_id='+m[2]+'&nickname='+nickname,
 				'success': function(data) {
 					if (data['error'] == 'DECEASED') {
 						alert("The patient is deceased so this macro cannot be used.");
@@ -262,10 +257,16 @@ $(document).ready(function() {
 
 			$.ajax({
 				'type': 'GET',
-				'url': baseUrl+'/OphCoCorrespondence/Default/getString?patient_id='+patient_id+'&string_type='+m[1]+'&string_id='+m[2],
+				'url': baseUrl+'/OphCoCorrespondence/Default/getString?patient_id='+OE_patient_id+'&string_type='+m[1]+'&string_id='+m[2],
 				'success': function(text) {
+					if (ophcocorrespondence_previous_dropdown(obj.attr('id'))) {
+						text = "\n\n"+ucfirst(text);
+					}
+
 					correspondence_append_body(text);
 					obj.val('');
+
+					et_oph_correspondence_last_stringgroup = obj.attr('id');
 				}
 			});
 		}
@@ -300,11 +301,38 @@ $(document).ready(function() {
 				}
 			});
 
-			if (!ok) return true;
+			if (!ok) {
+				if (obj.val() == 'patient') {
+					var found = false;
+					$.each($('#ElementLetter_cc').val().split("\n"),function(key, value) {
+						if (value.match(/^Patient: /)) {
+							found = true;
+						}
+					});
+					if (found) {
+						obj.val('');
+						return true;
+					}
+				} else if (obj.val() == 'gp') {
+					var found = false;
+					$.each($('#ElementLetter_cc').val().split("\n"),function(key, value) {
+						if (value.match(/^GP: /)) {
+							found = true;
+						}
+					});
+					if (found) {
+						obj.val('');
+						return true;
+					}
+				} else {
+					obj.val('');
+					return true;
+				}
+			}
 
 			$.ajax({
 				'type': 'GET',
-				'url': baseUrl+'/OphCoCorrespondence/Default/getCc?patient_id='+patient_id+'&contact_id='+contact_id,
+				'url': baseUrl+'/OphCoCorrespondence/Default/getCc?patient_id='+OE_patient_id+'&contact_id='+contact_id,
 				'success': function(text) {
 					if (text.match(/DECEASED/)) {
 						alert("The patient is deceased so cannot be cc'd.");
@@ -336,6 +364,7 @@ $(document).ready(function() {
 
 	$('#ElementLetter_body').unbind('keyup').bind('keyup',function() {
 		et_oph_correspondence_body_cursor_position = $(this).prop('selectionEnd');
+		et_oph_correspondence_last_stringgroup_do = false;
 
 		if (m = $(this).val().match(/\[([a-z]{3})\]/)) {
 
@@ -344,7 +373,7 @@ $(document).ready(function() {
 			$.ajax({
 				'type': 'POST',
 				'url': baseUrl+'/OphCoCorrespondence/Default/expandStrings',
-				'data': 'patient_id='+patient_id+'&text='+text,
+				'data': 'patient_id='+OE_patient_id+'&text='+text,
 				'success': function(resp) {
 					if (resp) {
 						$('#ElementLetter_body').val(resp);
@@ -359,45 +388,27 @@ $(document).ready(function() {
 	});
 
 	if ($('#OphCoCorrespondence_printLetter').val() == 1) {
-		printLetter(true);
+		setTimeout("OphCoCorrespondence_do_print(true);",1000);
 	}
 
-	$('#et_print').unbind('click').click(function() {
-		printLetter();
-		return false;
+	handleButton($('#et_print'),function(e) {
+		OphCoCorrespondence_do_print(false);
+		e.preventDefault();
 	});
 
-	function printLetter(all) {
-		$('#correspondence_out').removeClass('draft');
-
-		var m = window.location.href.match(/\/view\/([0-9]+)/);
-
-		$.ajax({
-			'type': 'GET',
-			'url': baseUrl+'/OphCoCorrespondence/Default/markPrinted/'+m[1],
-			'success': function(html) {
-				if (all) {
-					printPDF(baseUrl+'/OphCoCorrespondence/Default/print/'+m[1],{"all":1});
-				} else {
-					printPDF(baseUrl+'/OphCoCorrespondence/Default/print/'+m[1],{});
-				}
-			}
-		});
-	}
-
-	$('#et_print_all').unbind('click').click(function() {
-		printLetter(true);
+	handleButton($('#et_print_all'),function() {
+		OphCoCorrespondence_do_print(true);
+		e.preventDefault();
 	});
 
-	$('#et_confirm_printed').unbind('click').click(function() {
-		var m = window.location.href.match(/\/view\/([0-9]+)/);
-
+	handleButton($('#et_confirm_printed'),function() {
 		$.ajax({
 			'type': 'GET',
-			'url': baseUrl+'/OphCoCorrespondence/Default/confirmPrinted/'+m[1],
+			'url': baseUrl+'/OphCoCorrespondence/Default/confirmPrinted/'+OE_event_id,
 			'success': function(html) {
 				if (html != "1") {
 					alert("Sorry, something went wrong. Please try again or contact support for assistance.");
+					enableButtons();
 				} else {
 					location.reload(true);
 				}
@@ -409,7 +420,6 @@ $(document).ready(function() {
 		var id = -1;
 		$('#enclosureItems').children('div.enclosureItem').map(function() {
 			$(this).children('input').map(function() {
-				console.log($(this).attr('name'));
 				m = $(this).attr('name').match(/[0-9]+/);
 				if (parseInt(m[0]) > id) {
 					id = parseInt(m[0]);
@@ -423,9 +433,9 @@ $(document).ready(function() {
 		$('input[name="EnclosureItems[enclosure'+id+']"]').select().focus();
 	});
 
-	$('a.removeEnclosure').die('click').live('click',function() {
+	$('a.removeEnclosure').die('click').live('click',function(e) {
 		$(this).parent().remove();
-		return false;
+		e.preventDefault();
 	});
 
 	$('div.enclosureItem input').die('keypress').live('keypress',function(e) {
@@ -443,6 +453,8 @@ $(document).ready(function() {
 
 var et_oph_correspondence_body_cursor_position = 0;
 var re_field = null;
+var et_oph_correspondence_last_stringgroup_do = true;
+var et_oph_correspondence_last_stringgroup = null;
 
 function correspondence_load_data(data) {
 	for (var i in data) {
@@ -516,4 +528,49 @@ function uclower(str) {
 	str += '';
 	var f = str.charAt(0).toLowerCase();
 	return f + str.substr(1);
+}
+
+function ophcocorrespondence_previous_dropdown(dropdown) {
+	if (!et_oph_correspondence_last_stringgroup_do) {
+		return false;
+	}
+
+	switch (dropdown) {
+		case 'findings':
+			return (et_oph_correspondence_last_stringgroup == "introduction");
+		case 'diagnosis':
+			return inArray(et_oph_correspondence_last_stringgroup, ["introduction","findings"]);
+		case 'management':
+			return inArray(et_oph_correspondence_last_stringgroup, ["introduction","findings","diagnosis"]);
+		case 'drugs':
+			return inArray(et_oph_correspondence_last_stringgroup, ["introduction","findings","diagnosis","management"]);
+		case 'outcome':
+			return inArray(et_oph_correspondence_last_stringgroup, ["introduction","findings","diagnosis","management","drugs"]);
+	}
+
+	return false;
+}
+
+function inArray(needle, haystack) {
+	var length = haystack.length;
+	for (var i = 0; i < length; i++) {
+		if (haystack[i] == needle) return true;
+	}
+	return false;
+}
+
+function OphCoCorrespondence_do_print(all) {
+	$.ajax({
+		'type': 'GET',
+		'url': correspondence_markprinted_url,
+		'success': function(html) {
+			if (all) {
+				printIFrameUrl(OE_print_url, {"all":1});
+			} else {
+				printIFrameUrl(OE_print_url, null);
+				printIFrameUrl(correspondence_print_url, null);
+			}
+			enableButtons();
+		}
+	});
 }
