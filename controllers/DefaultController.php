@@ -361,11 +361,18 @@ class DefaultController extends BaseEventTypeController
 	public function actionMarkPrinted($id)
 	{
 		if ($letter = ElementLetter::model()->find('event_id=?',array($id))) {
+			$transaction = Yii::app()->db->beginTransaction('Mark printed','Correspondence letter');
+
 			$letter->print = 0;
 			$letter->draft = 0;
+
 			if (!$letter->save()) {
+				$transaction->rollback();
+
 				throw new Exception('Unable to mark letter printed: '.print_r($letter->getErrors(),true));
 			}
+
+			$transaction->commit();
 		}
 	}
 
@@ -553,6 +560,8 @@ class DefaultController extends BaseEventTypeController
 			throw new Exception("Letter not found for event id: $id");
 		}
 
+		$transaction = Yii::app()->db->beginTransaction('Print','Correspondence letter');
+
 		$letter->print = 1;
 		$letter->draft = 0;
 
@@ -561,18 +570,26 @@ class DefaultController extends BaseEventTypeController
 		}
 
 		if (!$letter->save()) {
+			$transaction->rollback();
+
 			throw new Exception("Unable to save letter: ".print_r($letter->getErrors(),true));
 		}
 
 		if (!$event = Event::model()->findByPk($id)) {
+			$transaction->rollback();
+
 			throw new Exception("Event not found: $id");
 		}
 
 		$event->info = '';
 
 		if (!$event->save()) {
+			$transaction->rollback();
+
 			throw new Exception("Unable to save event: ".print_r($event->getErrors(),true));
 		}
+
+		$transaction->commit();
 
 		echo "1";
 	}
