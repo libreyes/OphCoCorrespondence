@@ -21,7 +21,7 @@
 	<?php echo $element->renderIntroduction()?>
 </p>
 <p class="accessible"><strong><?php if ($element->re) { ?>Re: <?php echo preg_replace("/\, DOB\:|DOB\:/","<br />\nDOB:",CHtml::encode($element->re))?>
-<?php } else { ?>Hosp No: <?php echo $element->event->episode->patient->hos_num?>, NHS No: <?php echo $element->event->episode->patient->nhsnum?> <?php }?></strong></p>
+<?php } else { ?><?php echo $element->event->episode->patient->getAttributeLabel('hos_num')?>: <?php echo $element->event->episode->patient->hos_num?>, <?php echo $element->event->episode->patient->getAttributeLabel('nhs_num')?>: <?php echo $element->event->episode->patient->nhsnum?> <?php }?></strong></p>
 
 <p class="accessible">
 <?php echo $element->renderBody() ?>
