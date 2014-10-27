@@ -172,7 +172,7 @@ body {
 }
 
 .fromAddress {
-	width: 300px
+	width: 300px;
 	margin-top:30px;
 	text-align: right;
 	float: right;
@@ -221,7 +221,6 @@ body {
 }
 
 .print-letter-div {
-	padding: 30px;
 	page-break-after: always;
 }
 
